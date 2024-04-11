@@ -1,51 +1,49 @@
-import Stripe from "stripe";
-import { NextResponse } from "next/server";
+import Stripe from 'stripe';
+import { NextResponse } from 'next/server';
 
-import { stripe } from "@/lib/stripe";
-import prismadb from "@/lib/prismadb";
+import { stripe } from '@/lib/stripe';
+import prismadb from '@/lib/prismadb';
+import axios from 'axios';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 export async function OPTIONS() {
   return NextResponse.json({}, { headers: corsHeaders });
 }
 
-export async function POST(
-  req: Request,
-  { params }: { params: { storeId: string } }
-) {
+export async function POST(req: Request, { params }: { params: { storeId: string } }) {
   const { productIds } = await req.json();
 
   if (!productIds || productIds.length === 0) {
-    return new NextResponse("Product ids are required", { status: 400 });
+    return new NextResponse('Product ids are required', { status: 400 });
   }
 
   const products = await prismadb.product.findMany({
     where: {
       id: {
-        in: productIds
-      }
-    }
+        in: productIds,
+      },
+    },
   });
 
-  const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+  const item_details: any = [];
 
   products.forEach((product) => {
-    line_items.push({
+    item_details.push({
+      id: product.id,
+      name: product.name,
       quantity: 1,
-      price_data: {
-        currency: 'USD',
-        product_data: {
-          name: product.name,
-        },
-        unit_amount: product.price.toNumber() * 100
-      }
+      price: product.price.toNumber(),
     });
   });
+
+  const totalprice = products.reduce((total, item) => {
+    return total + Number(item.price);
+  }, 0);
 
   const order = await prismadb.order.create({
     data: {
@@ -55,29 +53,33 @@ export async function POST(
         create: productIds.map((productId: string) => ({
           product: {
             connect: {
-              id: productId
-            }
-          }
-        }))
-      }
-    }
-  });
-
-  const session = await stripe.checkout.sessions.create({
-    line_items,
-    mode: 'payment',
-    billing_address_collection: 'required',
-    phone_number_collection: {
-      enabled: true,
-    },
-    success_url: `${process.env.FRONTEND_STORE_URL}/cart?success=1`,
-    cancel_url: `${process.env.FRONTEND_STORE_URL}/cart?canceled=1`,
-    metadata: {
-      orderId: order.id
+              id: productId,
+            },
+          },
+        })),
+      },
     },
   });
 
-  return NextResponse.json({ url: session.url }, {
-    headers: corsHeaders
+  const secret: any = process.env.NEXT_PUBLIC_SECRET;
+
+  const encodeSecret = Buffer.from(secret).toString('base64');
+
+  const data = {
+    item_details,
+    transaction_details: {
+      order_id: order.id,
+      gross_amount: totalprice,
+    },
+  };
+
+  const response = await axios.post(`${process.env.NEXT_PUBLIC_API}/v1/payment-links`, data, {
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: `Basic ${encodeSecret}`,
+    },
   });
-};
+
+  return NextResponse.json({ url: response.data.payment_url }, { headers: corsHeaders });
+}

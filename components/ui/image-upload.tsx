@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { CldUploadWidget } from 'next-cloudinary';
 import { useEffect, useState } from 'react';
@@ -14,12 +14,7 @@ interface ImageUploadProps {
   value: string[];
 }
 
-const ImageUpload: React.FC<ImageUploadProps> = ({
-  disabled,
-  onChange,
-  onRemove,
-  value
-}) => {
+const ImageUpload: React.FC<ImageUploadProps> = ({ disabled, onChange, onRemove, value }) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -34,7 +29,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     return null;
   }
 
-  return ( 
+  return (
     <div>
       <div className="mb-4 flex items-center gap-4">
         {value.map((url) => (
@@ -44,28 +39,18 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                 <Trash className="h-4 w-4" />
               </Button>
             </div>
-            <Image
-              fill
-              className="object-cover"
-              alt="Image"
-              src={url}
-            />
+            <Image fill className="object-cover" alt="Image" src={url} />
           </div>
         ))}
       </div>
-      <CldUploadWidget onUpload={onUpload} uploadPreset="t4drjppf">
+      <CldUploadWidget onUpload={onUpload} uploadPreset="gacairht">
         {({ open }) => {
           const onClick = () => {
             open();
           };
 
           return (
-            <Button 
-              type="button" 
-              disabled={disabled} 
-              variant="secondary" 
-              onClick={onClick}
-            >
+            <Button type="button" disabled={disabled} variant="secondary" onClick={onClick}>
               <ImagePlus className="h-4 w-4 mr-2" />
               Upload an Image
             </Button>
@@ -74,6 +59,6 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       </CldUploadWidget>
     </div>
   );
-}
- 
+};
+
 export default ImageUpload;
